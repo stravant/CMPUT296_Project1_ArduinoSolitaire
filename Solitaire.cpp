@@ -390,6 +390,12 @@ public:
 	}
 
 	void draw() {
+		//clamp the dirty region to the sceen size
+		if (mDirtyRegion.X < 0) mDirtyRegion.X = 0;
+		if (mDirtyRegion.Y < 0) mDirtyRegion.Y = 0;
+		if (mDirtyRegion.X + mDirtyRegion.W >` 160) mDirtyRegion.W = 160 - mDirtyRegion.X;
+		if (mDirtyRegion.Y + mDirtyRegion.H > 128) mDirtyRegion.H = 128 - mDirtyRegion.Y;
+
 		//background
 		static uint16_t bgcolor = tft.Color565(0,200,0);
 		static uint16_t bgcolors[16] = {
@@ -414,14 +420,14 @@ public:
 		tft.setAddrWindow(mDirtyRegion.X, mDirtyRegion.Y, 
 			              mDirtyRegion.X + mDirtyRegion.W, 
 			              mDirtyRegion.Y + mDirtyRegion.H);
-		//tft.fastPushColorBegin();
+		tft.fastPushColorBegin();
 		for (int y = mDirtyRegion.Y; y < mDirtyRegion.H+mDirtyRegion.Y; ++y) {
 			for (int x = mDirtyRegion.X; x < mDirtyRegion.W+mDirtyRegion.X; ++x) {
 				uint16_t i = x*y;
-				tft.pushColor(bgcolors[i%13]);
+				tft.fastPushColor(bgcolors[i%13]);
 			}
 		}
-		//tft.fastPushColorEnd();
+		tft.fastPushColorEnd();
 
 		//draw the deck
 		if (!mTopOfDeck || mTopOfDeck->Next)
@@ -637,7 +643,12 @@ public:
 			if (mCursorLocationX == 1) {
 				//put back on the deck.
 				//insert
-				mHeldCard->Next = mTopOfDeck->Next;
+				if (mTopOfDeck) {
+					mHeldCard->Next = mTopOfDeck->Next;
+				} else {
+					mHeldCard->Next = mDeck;
+					mDeck = mHeldCard;
+				}
 				mHeldCard->Prev = mTopOfDeck;
 				mTopOfDeck->Next->Prev = mHeldCard;
 				mTopOfDeck->Next = mHeldCard;
@@ -704,7 +715,12 @@ public:
 							//un+relink
 							Card* oldPrev = card->Prev;
 							Card* oldNext = card->Next;
-							if (oldPrev) oldPrev->Next = oldNext;
+							if (oldPrev) {
+								oldPrev->Next = oldNext;
+							} else {
+								//no old previous, update the deck
+								mDeck = card->Next;
+							}
 							if (oldNext) oldNext->Prev = oldPrev;
 							card->Next = 0;
 							card->Prev = 0;
